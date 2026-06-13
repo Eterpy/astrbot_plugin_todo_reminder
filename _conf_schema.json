@@ -1,0 +1,46 @@
+{
+  "max_items_per_user": {
+    "description": "每个私聊会话最大条目数",
+    "type": "int",
+    "hint": "限制待办和提醒总数，0 表示不限制。",
+    "obvious_hint": true,
+    "default": 50
+  },
+  "reply_in_group": {
+    "description": "群聊中提示私聊使用",
+    "type": "bool",
+    "hint": "插件仅支持私聊。开启后，群聊中使用 /todo 会提示去私聊；关闭后静默忽略。",
+    "obvious_hint": true,
+    "default": false
+  },
+  "enable_llm_reminder": {
+    "description": "启用 AI 自然语言提醒",
+    "type": "bool",
+    "hint": "启用后，到点提醒会优先使用当前 LLM 生成自然语言提醒；无可用模型时自动回退固定文本。",
+    "obvious_hint": true,
+    "default": true
+  },
+  "reminder_prompt": {
+    "description": "提醒生成提示词模板",
+    "type": "text",
+    "hint": "可使用 {reminder_text}、{todo_text}、{current_time} 占位符。",
+    "obvious_hint": false,
+    "default": "你是一个简洁自然的提醒助手。当前时间是 {current_time}。请提醒用户：{reminder_text}。如果关联待办不是空：{todo_text}。请直接输出要发送给用户的话，不要解释背景。",
+    "editor_mode": true,
+    "editor_language": "text"
+  },
+  "holiday_cache_days": {
+    "description": "节假日缓存天数",
+    "type": "int",
+    "hint": "法定节假日数据缓存有效期，默认 30 天。",
+    "obvious_hint": false,
+    "default": 30
+  },
+  "timezone": {
+    "description": "提醒时区",
+    "type": "text",
+    "hint": "用于解析提醒时间和注册调度任务，默认 Asia/Shanghai。Docker 或海外服务器部署时建议显式设置。",
+    "obvious_hint": false,
+    "default": "Asia/Shanghai"
+  }
+}

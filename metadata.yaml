@@ -1,0 +1,6 @@
+name: todo_reminder
+desc: 私聊本地待办与提醒插件，支持自然语言创建待办、独立提醒、重复提醒和法定节假日判断。
+help: 输入 /todo help 查看帮助
+version: v0.1.0
+author: interpy
+repo: https://github.com/interpy/astrbot_plugin_todo_reminder

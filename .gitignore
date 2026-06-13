@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Editors
+.idea/
+.vscode/
+
+# Local reference material (not part of the plugin)
+Code_Reference/
+
+# Runtime data (generated in AstrBot's data dir, kept out of the repo)
+todo_reminder_data.json
+holiday_cache.json
+*.bak.*
