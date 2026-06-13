@@ -29,6 +29,7 @@ AstrBot 私聊本地待办与提醒插件。支持待办清单、独立提醒、
 - [开发验证](#开发验证)
 - [本地上传打包](#本地上传打包)
 - [反馈与贡献](#反馈与贡献)
+- [致谢](#致谢)
 - [许可证](#许可证)
 
 ## 功能特性
@@ -494,6 +495,10 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile main.py src/*.py tests/*.py
 
 - 问题反馈与功能建议：[提交 Issue](https://github.com/interpy/astrbot_plugin_todo_reminder/issues)
 - 欢迎提交 Pull Request；提交前请运行[开发验证](#开发验证)确保测试通过。
+
+## 致谢
+
+本项目参考了 [astrbot_plugin_sy](https://github.com/kjqwer/astrbot_plugin_sy) 的代码实现，在此表示感谢！
 
 ## 许可证
 
