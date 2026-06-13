@@ -1,7 +1,7 @@
 # Todo Reminder
 
 <p align="center">
-  <img src="logo.png" alt="Todo Reminder" width="160">
+  <img src="https://raw.githubusercontent.com/Eterpy/astrbot_plugin_todo_reminder/main/logo.png" alt="Todo Reminder" width="160">
 </p>
 
 <p align="center">
@@ -56,7 +56,7 @@ AstrBot 私聊本地待办与提醒插件。支持待办清单、独立提醒、
 
 ```bash
 cd /path/to/AstrBot/data/plugins
-git clone https://github.com/interpy/astrbot_plugin_todo_reminder.git
+git clone https://github.com/Eterpy/astrbot_plugin_todo_reminder.git
 ```
 
 依赖会根据 `requirements.txt` 自动安装；如需手动安装：
@@ -493,7 +493,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile main.py src/*.py tests/*.py
 
 ## 反馈与贡献
 
-- 问题反馈与功能建议：[提交 Issue](https://github.com/interpy/astrbot_plugin_todo_reminder/issues)
+- 问题反馈与功能建议：[提交 Issue](https://github.com/Eterpy/astrbot_plugin_todo_reminder/issues)
 - 欢迎提交 Pull Request；提交前请运行[开发验证](#开发验证)确保测试通过。
 
 ## 致谢
