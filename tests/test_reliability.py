@@ -875,7 +875,7 @@ class ReliabilityTests(unittest.IsolatedAsyncioTestCase):
             service = TodoReminderService(store, _DummyScheduler())
             harness = _PluginHarness(store, service)
 
-            result = await harness.create_reminder_tool(_Event(), "喝水", delay_minutes=1)
+            result = await harness.create_reminder_tool(_Event(), "喝水", delay_minutes="1")
 
             reminder = store.get_session("session")["reminders"][0]
             self.assertIn("已创建提醒", result)
@@ -888,7 +888,7 @@ class ReliabilityTests(unittest.IsolatedAsyncioTestCase):
             service = TodoReminderService(store, _DummyScheduler())
             harness = _PluginHarness(store, service)
 
-            result = await harness.create_todo_tool(_Event(), "写周报", delay_minutes=1)
+            result = await harness.create_todo_tool(_Event(), "写周报", delay_minutes="1")
 
             session = store.get_session("session")
             self.assertIn("已创建待办", result)
@@ -905,7 +905,7 @@ class ReliabilityTests(unittest.IsolatedAsyncioTestCase):
             reminder = make_reminder("喝水", format_stored_datetime(dt.datetime.now() + dt.timedelta(days=1)))
             store.add_reminder("session", reminder)
 
-            result = await harness.update_reminder_tool(_Event(), "1", delay_minutes=1)
+            result = await harness.update_reminder_tool(_Event(), "1", delay_minutes="1")
 
             updated = store.get_session("session")["reminders"][0]
             self.assertIn("已更新提醒", result)
@@ -919,7 +919,7 @@ class ReliabilityTests(unittest.IsolatedAsyncioTestCase):
             service = TodoReminderService(store, _DummyScheduler())
             harness = _PluginHarness(store, service)
 
-            result = await harness.create_reminder_tool(_Event(), "喝水", delay_seconds=366 * 24 * 60 * 60 + 1)
+            result = await harness.create_reminder_tool(_Event(), "喝水", delay_seconds=str(366 * 24 * 60 * 60 + 1))
 
             self.assertEqual(result, "相对提醒延迟不能超过 366 天。")
             self.assertEqual(store.get_session("session")["reminders"], [])

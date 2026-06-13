@@ -238,8 +238,8 @@ class TodoReminderPlugin(Star):
         event: AstrMessageEvent,
         text: str,
         datetime_str: str | None = None,
-        delay_minutes: int | None = None,
-        delay_seconds: int | None = None,
+        delay_minutes: str | None = None,
+        delay_seconds: str | None = None,
         reminder_text: str | None = None,
         repeat: str | None = None,
         holiday_type: str | None = None,
@@ -250,8 +250,8 @@ class TodoReminderPlugin(Star):
         Args:
             text(string): 待办内容
             datetime_str(string): 可选，绝对提醒时间，格式 YYYY-MM-DD HH:MM
-            delay_minutes(integer): 可选，相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
-            delay_seconds(integer): 可选，相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_minutes(string): 可选，相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_seconds(string): 可选，相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
             reminder_text(string): 可选，提醒内容；为空时使用待办内容
             repeat(string): 可选，none,daily,weekly,monthly,yearly
             holiday_type(string): 可选，none,workday,holiday
@@ -297,8 +297,8 @@ class TodoReminderPlugin(Star):
         event: AstrMessageEvent,
         text: str,
         datetime_str: str | None = None,
-        delay_minutes: int | None = None,
-        delay_seconds: int | None = None,
+        delay_minutes: str | None = None,
+        delay_seconds: str | None = None,
         repeat: str | None = None,
         holiday_type: str | None = None,
     ):
@@ -307,8 +307,8 @@ class TodoReminderPlugin(Star):
         Args:
             text(string): 提醒内容
             datetime_str(string): 可选，绝对提醒时间，格式 YYYY-MM-DD HH:MM
-            delay_minutes(integer): 可选，相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
-            delay_seconds(integer): 可选，相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_minutes(string): 可选，相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_seconds(string): 可选，相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
             repeat(string): 可选，none,daily,weekly,monthly,yearly
             holiday_type(string): 可选，none,workday,holiday
         """
@@ -430,8 +430,8 @@ class TodoReminderPlugin(Star):
         selector: str,
         text: str | None = None,
         datetime_str: str | None = None,
-        delay_minutes: int | None = None,
-        delay_seconds: int | None = None,
+        delay_minutes: str | None = None,
+        delay_seconds: str | None = None,
         repeat: str | None = None,
         holiday_type: str | None = None,
     ):
@@ -441,8 +441,8 @@ class TodoReminderPlugin(Star):
             selector(string): 提醒序号
             text(string): 可选，新提醒内容
             datetime_str(string): 可选，新绝对提醒时间，格式 YYYY-MM-DD HH:MM
-            delay_minutes(integer): 可选，新相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
-            delay_seconds(integer): 可选，新相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_minutes(string): 可选，新相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_seconds(string): 可选，新相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
             repeat(string): 可选，none,daily,weekly,monthly,yearly
             holiday_type(string): 可选，none,workday,holiday
         """
