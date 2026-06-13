@@ -121,7 +121,7 @@ from src.models import format_stored_datetime, make_reminder, make_todo, parse_s
 from src.config_utils import parse_bool_config, parse_int_config, parse_timezone_config
 from src.commands import TodoReminderCommands
 from src.scheduler import REGISTRY_NAME, TodoReminderScheduler
-from src.service import TodoReminderService
+from src.service import TodoReminderService, parse_llm_datetime
 from src.storage import TodoReminderStore
 from src.time_utils import parse_datetime
 from astrbot_plugin_todo_reminder.main import TodoReminderPlugin
@@ -244,6 +244,7 @@ class _PluginHarness:
     def __init__(self, store, service):
         self.store = store
         self.service = service
+        self.timezone = None
 
     _is_private_event = TodoReminderPlugin._is_private_event
     _is_all_selector = TodoReminderPlugin._is_all_selector
@@ -251,6 +252,9 @@ class _PluginHarness:
     _count_reminders_by_keyword = TodoReminderPlugin._count_reminders_by_keyword
     _count_reminders_by_todo_keyword = TodoReminderPlugin._count_reminders_by_todo_keyword
     _count_linked_reminders_for_todos = TodoReminderPlugin._count_linked_reminders_for_todos
+    create_todo_tool = TodoReminderPlugin.create_todo_tool
+    create_reminder_tool = TodoReminderPlugin.create_reminder_tool
+    update_reminder_tool = TodoReminderPlugin.update_reminder_tool
     delete_todo_tool = TodoReminderPlugin.delete_todo_tool
     delete_all_todos_tool = TodoReminderPlugin.delete_all_todos_tool
     delete_reminder_tool = TodoReminderPlugin.delete_reminder_tool
@@ -448,6 +452,56 @@ class ReliabilityTests(unittest.IsolatedAsyncioTestCase):
 
         parsed = parse_stored_datetime(parse_datetime("0000", reject_explicit_past=True))
         self.assertGreater(parsed, dt.datetime.now())
+
+    def test_month_day_time_rolls_to_next_year_when_same_minute_has_passed(self):
+        current = dt.datetime(2099, 6, 14, 20, 49, 50)
+
+        self.assertEqual(
+            parse_datetime("06-14-20:49", now=current),
+            "2100-06-14 20:49",
+        )
+        self.assertEqual(
+            parse_datetime("06142049", now=current),
+            "2100-06-14 20:49",
+        )
+
+    def test_month_day_time_finds_next_valid_leap_year(self):
+        current = dt.datetime(2099, 1, 1, 0, 0)
+
+        self.assertEqual(parse_datetime("02-29-09:00", now=current), "2104-02-29 09:00")
+        self.assertEqual(parse_datetime("02290900", now=current), "2104-02-29 09:00")
+
+    def test_llm_relative_delay_keeps_full_offset_after_minute_rounding(self):
+        parsed = parse_llm_datetime(delay_minutes=1, now=dt.datetime(2099, 1, 1, 20, 49, 50))
+
+        self.assertEqual(parsed, "2099-01-01 20:51")
+
+    def test_llm_relative_delay_accepts_seconds(self):
+        parsed = parse_llm_datetime(delay_seconds=90, now=dt.datetime(2099, 1, 1, 20, 49, 50))
+
+        self.assertEqual(parsed, "2099-01-01 20:52")
+
+    def test_llm_absolute_time_uses_injected_now(self):
+        parsed = parse_llm_datetime("00:00", now=dt.datetime(2099, 1, 1, 20, 49, 50))
+
+        self.assertEqual(parsed, "2099-01-02 00:00")
+
+    def test_llm_relative_delay_takes_precedence_over_datetime(self):
+        parsed = parse_llm_datetime(
+            "2099-01-01 20:50",
+            delay_minutes=1,
+            now=dt.datetime(2099, 1, 1, 20, 49, 50),
+        )
+
+        self.assertEqual(parsed, "2099-01-01 20:51")
+
+    def test_llm_relative_delay_rejects_invalid_values(self):
+        with self.assertRaisesRegex(ValueError, "延迟分钟数必须是非负整数"):
+            parse_llm_datetime(delay_minutes="abc", now=dt.datetime(2099, 1, 1, 20, 49, 50))
+        with self.assertRaisesRegex(ValueError, "延迟秒数不能为负数"):
+            parse_llm_datetime(delay_seconds=-1, now=dt.datetime(2099, 1, 1, 20, 49, 50))
+        with self.assertRaisesRegex(ValueError, "相对提醒延迟不能超过 366 天"):
+            parse_llm_datetime(delay_seconds=366 * 24 * 60 * 60 + 1, now=dt.datetime(2099, 1, 1, 20, 49, 50))
 
     async def test_missed_one_time_reminder_is_sent_then_removed(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -813,6 +867,61 @@ class ReliabilityTests(unittest.IsolatedAsyncioTestCase):
 
             result = await harness.delete_reminders_by_keyword_tool(_Event(), "喝水", confirm="yes")
             self.assertIn("数量：2 条", result)
+            self.assertEqual(store.get_session("session")["reminders"], [])
+
+    async def test_llm_create_reminder_tool_accepts_relative_delay(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = TodoReminderStore(Path(temp_dir) / "data.json")
+            service = TodoReminderService(store, _DummyScheduler())
+            harness = _PluginHarness(store, service)
+
+            result = await harness.create_reminder_tool(_Event(), "喝水", delay_minutes=1)
+
+            reminder = store.get_session("session")["reminders"][0]
+            self.assertIn("已创建提醒", result)
+            self.assertEqual(reminder["text"], "喝水")
+            self.assertGreater(parse_stored_datetime(reminder["datetime"]), dt.datetime.now())
+
+    async def test_llm_create_todo_tool_accepts_relative_delay(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = TodoReminderStore(Path(temp_dir) / "data.json")
+            service = TodoReminderService(store, _DummyScheduler())
+            harness = _PluginHarness(store, service)
+
+            result = await harness.create_todo_tool(_Event(), "写周报", delay_minutes=1)
+
+            session = store.get_session("session")
+            self.assertIn("已创建待办", result)
+            self.assertEqual(len(session["todos"]), 1)
+            self.assertEqual(len(session["reminders"]), 1)
+            self.assertEqual(session["reminders"][0]["todo_id"], session["todos"][0]["id"])
+
+    async def test_llm_update_reminder_tool_accepts_relative_delay(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = TodoReminderStore(Path(temp_dir) / "data.json")
+            scheduler = _DummyScheduler()
+            service = TodoReminderService(store, scheduler)
+            harness = _PluginHarness(store, service)
+            reminder = make_reminder("喝水", format_stored_datetime(dt.datetime.now() + dt.timedelta(days=1)))
+            store.add_reminder("session", reminder)
+
+            result = await harness.update_reminder_tool(_Event(), "1", delay_minutes=1)
+
+            updated = store.get_session("session")["reminders"][0]
+            self.assertIn("已更新提醒", result)
+            self.assertGreater(parse_stored_datetime(updated["datetime"]), dt.datetime.now())
+            self.assertLess(parse_stored_datetime(updated["datetime"]), dt.datetime.now() + dt.timedelta(minutes=3))
+            self.assertTrue(scheduler.jobs)
+
+    async def test_llm_relative_delay_tool_returns_validation_error(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = TodoReminderStore(Path(temp_dir) / "data.json")
+            service = TodoReminderService(store, _DummyScheduler())
+            harness = _PluginHarness(store, service)
+
+            result = await harness.create_reminder_tool(_Event(), "喝水", delay_seconds=366 * 24 * 60 * 60 + 1)
+
+            self.assertEqual(result, "相对提醒延迟不能超过 366 天。")
             self.assertEqual(store.get_session("session")["reminders"], [])
 
     async def test_edit_reminder_rejects_stale_schedule_update(self):

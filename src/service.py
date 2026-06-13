@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import copy
+import datetime as dt
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from .models import (
     TODO_STATUS_DONE,
     TODO_STATUS_OPEN,
+    format_stored_datetime,
     make_reminder,
     make_todo,
     normalize_holiday_type,
@@ -20,6 +22,7 @@ from .time_utils import now_in_timezone, parse_datetime, parse_datetime_for_llm
 MAX_TEXT_LENGTH = 500
 MAX_NOTES_LENGTH = 1000
 DEFAULT_MAX_ITEMS_PER_USER = 50
+MAX_RELATIVE_DELAY_SECONDS = 366 * 24 * 60 * 60
 
 
 class TodoReminderService:
@@ -457,8 +460,59 @@ def _todo_section_title(status_filter: str) -> str:
     return "未完成待办："
 
 
-def parse_llm_datetime(value: str, timezone: ZoneInfo | None = None) -> str:
-    return parse_datetime_for_llm(value, reject_explicit_past=True, timezone=timezone)
+def parse_llm_datetime(
+    value: str | None = None,
+    timezone: ZoneInfo | None = None,
+    *,
+    delay_minutes: Any = None,
+    delay_seconds: Any = None,
+    now: dt.datetime | None = None,
+) -> str:
+    delay = _parse_relative_delay(delay_minutes, delay_seconds)
+    if delay is not None:
+        current = now or now_in_timezone(timezone)
+        try:
+            return format_stored_datetime(_ceil_to_minute(current + delay, current))
+        except OverflowError:
+            raise ValueError("相对提醒延迟不能超过 366 天。") from None
+    if not value or not value.strip():
+        raise ValueError("提醒时间不能为空。")
+    return parse_datetime_for_llm(value, reject_explicit_past=True, timezone=timezone, now=now)
+
+
+def _parse_relative_delay(delay_minutes: Any = None, delay_seconds: Any = None) -> dt.timedelta | None:
+    has_minutes = _has_value(delay_minutes)
+    has_seconds = _has_value(delay_seconds)
+    if not has_minutes and not has_seconds:
+        return None
+    minutes = _parse_delay_part(delay_minutes, "延迟分钟数") if has_minutes else 0
+    seconds = _parse_delay_part(delay_seconds, "延迟秒数") if has_seconds else 0
+    total_seconds = minutes * 60 + seconds
+    if total_seconds > MAX_RELATIVE_DELAY_SECONDS:
+        raise ValueError("相对提醒延迟不能超过 366 天。")
+    return dt.timedelta(seconds=total_seconds)
+
+
+def _parse_delay_part(value: Any, field_name: str) -> int:
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name}必须是非负整数。") from None
+    if parsed < 0:
+        raise ValueError(f"{field_name}不能为负数。")
+    return parsed
+
+
+def _ceil_to_minute(value: dt.datetime, now: dt.datetime) -> dt.datetime:
+    if value.second or value.microsecond:
+        value = value.replace(second=0, microsecond=0) + dt.timedelta(minutes=1)
+    if value <= now:
+        value = now.replace(second=0, microsecond=0) + dt.timedelta(minutes=1)
+    return value
+
+
+def _has_value(value: Any) -> bool:
+    return value is not None and str(value).strip() != ""
 
 
 def _normalize_max_items(value: int) -> int:

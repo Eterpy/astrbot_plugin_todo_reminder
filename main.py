@@ -20,6 +20,10 @@ def _tool_error_message(exc: Exception) -> str:
     return "操作失败，请稍后重试。"
 
 
+def _has_tool_value(value) -> bool:
+    return value is not None and str(value).strip() != ""
+
+
 @register("todo_reminder", "interpy", "私聊本地待办与提醒插件", "0.1.0")
 class TodoReminderPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -234,6 +238,8 @@ class TodoReminderPlugin(Star):
         event: AstrMessageEvent,
         text: str,
         datetime_str: str | None = None,
+        delay_minutes: int | None = None,
+        delay_seconds: int | None = None,
         reminder_text: str | None = None,
         repeat: str | None = None,
         holiday_type: str | None = None,
@@ -243,7 +249,9 @@ class TodoReminderPlugin(Star):
 
         Args:
             text(string): 待办内容
-            datetime_str(string): 可选，提醒时间，格式 YYYY-MM-DD HH:MM
+            datetime_str(string): 可选，绝对提醒时间，格式 YYYY-MM-DD HH:MM
+            delay_minutes(integer): 可选，相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_seconds(integer): 可选，相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
             reminder_text(string): 可选，提醒内容；为空时使用待办内容
             repeat(string): 可选，none,daily,weekly,monthly,yearly
             holiday_type(string): 可选，none,workday,holiday
@@ -252,7 +260,21 @@ class TodoReminderPlugin(Star):
         if not self._is_private_event(event):
             return "本插件仅支持私聊，请在私聊中使用。"
         try:
-            parsed = parse_llm_datetime(datetime_str, self.timezone) if datetime_str else None
+            has_reminder_time = (
+                _has_tool_value(datetime_str)
+                or _has_tool_value(delay_minutes)
+                or _has_tool_value(delay_seconds)
+            )
+            parsed = (
+                parse_llm_datetime(
+                    datetime_str,
+                    self.timezone,
+                    delay_minutes=delay_minutes,
+                    delay_seconds=delay_seconds,
+                )
+                if has_reminder_time
+                else None
+            )
             todo, reminder = await self.service.create_todo(
                 event.unified_msg_origin,
                 text,
@@ -274,7 +296,9 @@ class TodoReminderPlugin(Star):
         self,
         event: AstrMessageEvent,
         text: str,
-        datetime_str: str,
+        datetime_str: str | None = None,
+        delay_minutes: int | None = None,
+        delay_seconds: int | None = None,
         repeat: str | None = None,
         holiday_type: str | None = None,
     ):
@@ -282,7 +306,9 @@ class TodoReminderPlugin(Star):
 
         Args:
             text(string): 提醒内容
-            datetime_str(string): 提醒时间，格式 YYYY-MM-DD HH:MM
+            datetime_str(string): 可选，绝对提醒时间，格式 YYYY-MM-DD HH:MM
+            delay_minutes(integer): 可选，相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_seconds(integer): 可选，相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
             repeat(string): 可选，none,daily,weekly,monthly,yearly
             holiday_type(string): 可选，none,workday,holiday
         """
@@ -292,7 +318,12 @@ class TodoReminderPlugin(Star):
             reminder = await self.service.create_reminder(
                 event.unified_msg_origin,
                 text,
-                parse_llm_datetime(datetime_str, self.timezone),
+                parse_llm_datetime(
+                    datetime_str,
+                    self.timezone,
+                    delay_minutes=delay_minutes,
+                    delay_seconds=delay_seconds,
+                ),
                 repeat=repeat,
                 holiday_type=holiday_type,
                 time_already_parsed=True,
@@ -399,6 +430,8 @@ class TodoReminderPlugin(Star):
         selector: str,
         text: str | None = None,
         datetime_str: str | None = None,
+        delay_minutes: int | None = None,
+        delay_seconds: int | None = None,
         repeat: str | None = None,
         holiday_type: str | None = None,
     ):
@@ -407,14 +440,30 @@ class TodoReminderPlugin(Star):
         Args:
             selector(string): 提醒序号
             text(string): 可选，新提醒内容
-            datetime_str(string): 可选，新提醒时间，格式 YYYY-MM-DD HH:MM
+            datetime_str(string): 可选，新绝对提醒时间，格式 YYYY-MM-DD HH:MM
+            delay_minutes(integer): 可选，新相对提醒延迟分钟数；用户说“1分钟后”等相对时间时必须传这里，不要自行换算成 datetime_str
+            delay_seconds(integer): 可选，新相对提醒延迟秒数；用户说“90秒后”等相对时间时必须传这里，不要自行换算成 datetime_str
             repeat(string): 可选，none,daily,weekly,monthly,yearly
             holiday_type(string): 可选，none,workday,holiday
         """
         if not self._is_private_event(event):
             return "本插件仅支持私聊，请在私聊中使用。"
         try:
-            parsed = parse_llm_datetime(datetime_str, self.timezone) if datetime_str else None
+            has_new_time = (
+                _has_tool_value(datetime_str)
+                or _has_tool_value(delay_minutes)
+                or _has_tool_value(delay_seconds)
+            )
+            parsed = (
+                parse_llm_datetime(
+                    datetime_str,
+                    self.timezone,
+                    delay_minutes=delay_minutes,
+                    delay_seconds=delay_seconds,
+                )
+                if has_new_time
+                else None
+            )
             reminder = await self.service.edit_reminder(
                 event.unified_msg_origin,
                 selector,

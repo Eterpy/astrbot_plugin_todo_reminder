@@ -23,11 +23,13 @@ def parse_datetime(
     *,
     reject_explicit_past: bool = False,
     timezone: ZoneInfo | None = None,
+    now: dt.datetime | None = None,
 ) -> str:
     original = value
     text = value.strip().replace("：", ":")
-    now = now_in_timezone(timezone)
+    now = now or now_in_timezone(timezone)
     parsed: dt.datetime | None = None
+    has_month_day = False
 
     for fmt in ("%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M", "%Y-%m-%d-%H:%M"):
         try:
@@ -38,9 +40,11 @@ def parse_datetime(
 
     if parsed is None:
         parsed = _parse_month_day_time(text, now)
+        has_month_day = parsed is not None
 
     if parsed is None and text.isdigit():
         parsed = _parse_compact_digits(text, now)
+        has_month_day = parsed is not None and len(text) == 8
 
     if parsed is None and ":" in text:
         parts = text.split(":")
@@ -61,7 +65,7 @@ def parse_datetime(
     has_explicit_year = _has_explicit_year(text)
     if reject_explicit_past and has_explicit_year and parsed < now:
         raise ValueError("提醒时间不能早于当前时间。")
-    parsed = _adjust_past_datetime(parsed, now, has_explicit_year=has_explicit_year)
+    parsed = _adjust_past_datetime(parsed, now, has_explicit_year=has_explicit_year, has_month_day=has_month_day)
     parsed = adjust_datetime_for_week(parsed, week)
     return format_stored_datetime(parsed)
 
@@ -71,6 +75,7 @@ def parse_datetime_for_llm(
     *,
     reject_explicit_past: bool = False,
     timezone: ZoneInfo | None = None,
+    now: dt.datetime | None = None,
 ) -> str:
     text = value.strip().replace("：", ":")
     parsed: dt.datetime | None = None
@@ -81,11 +86,11 @@ def parse_datetime_for_llm(
         except ValueError:
             continue
     if parsed is not None:
-        now = now_in_timezone(timezone)
+        now = now or now_in_timezone(timezone)
         if reject_explicit_past and parsed < now:
             raise ValueError("提醒时间不能早于当前时间。")
         return format_stored_datetime(_adjust_past_datetime(parsed, now, has_explicit_year=True))
-    return parse_datetime(text, reject_explicit_past=reject_explicit_past, timezone=timezone)
+    return parse_datetime(text, reject_explicit_past=reject_explicit_past, timezone=timezone, now=now)
 
 
 def now_in_timezone(timezone: ZoneInfo | None = None) -> dt.datetime:
@@ -117,7 +122,7 @@ def _parse_compact_digits(text: str, now: dt.datetime) -> dt.datetime | None:
             day = int(text[2:4])
             hour = int(text[4:6])
             minute = int(text[6:])
-            return dt.datetime(now.year, month, day, hour, minute)
+            return _build_month_day_datetime(now.year, month, day, hour, minute)
         if len(text) == 12:
             year = int(text[:4])
             month = int(text[4:6])
@@ -142,7 +147,7 @@ def _parse_month_day_time(text: str, now: dt.datetime) -> dt.datetime | None:
         day = int(parts[1])
         hour = int(time_parts[0])
         minute = int(time_parts[1])
-        return dt.datetime(now.year, month, day, hour, minute)
+        return _build_month_day_datetime(now.year, month, day, hour, minute)
     except ValueError:
         return None
 
@@ -152,14 +157,41 @@ def _validate_datetime(value: dt.datetime, original: str) -> None:
         raise ValueError(f"时间格式错误：{original}")
 
 
-def _adjust_past_datetime(value: dt.datetime, now: dt.datetime, has_explicit_year: bool) -> dt.datetime:
+def _adjust_past_datetime(
+    value: dt.datetime,
+    now: dt.datetime,
+    has_explicit_year: bool,
+    has_month_day: bool = False,
+) -> dt.datetime:
     if value >= now:
         return value
     if has_explicit_year:
         return value
-    if value.year == now.year and (value.month, value.day) != (now.month, now.day):
-        return value.replace(year=now.year + 1)
+    if has_month_day:
+        return _replace_with_next_valid_year(value, now.year + 1)
     return value + dt.timedelta(days=1)
+
+
+def _replace_with_next_valid_year(value: dt.datetime, start_year: int) -> dt.datetime:
+    next_value = _build_month_day_datetime(start_year, value.month, value.day, value.hour, value.minute)
+    if next_value is None:
+        raise ValueError("时间格式错误，无法找到有效年份。")
+    return next_value
+
+
+def _build_month_day_datetime(
+    start_year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int,
+) -> dt.datetime | None:
+    for year in range(start_year, start_year + 12):
+        try:
+            return dt.datetime(year, month, day, hour, minute)
+        except ValueError:
+            continue
+    return None
 
 
 def _has_explicit_year(text: str) -> bool:
